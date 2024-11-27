@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Pedido</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #23272F;
+            margin: 0;
+            padding: 20px;
+            color: #F6F7F9;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #F6F7F9;
+        }
+
+        form {
+            background-color: #23272F;
+            padding: 20px;
+            border: 2px solid #58C4DC;
+            border-radius: 8px;
+            box-shadow: 8px 8px 0px #2c3e50;
+            max-width: 600px;
+            margin: auto;
+            margin-bottom: 20px;
+            color: #F6F7F9;
+        }
+
+        form input, form select, form textarea {
+            width: calc(100% - 20px);
+            margin-bottom: 15px;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #58C4DC;
+            border-radius: 4px;
+            background-color: #2c3e50;
+            color: #F6F7F9;
+        }
+
+        form input[readonly] {
+            background-color: #2c3e50;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        form button {
+            width: 100%;
+            background-color: #58C4DC;
+            color: #23272F;
+            border: none;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        form button:hover {
+            background-color: #4BA3B9;
+        }
+
+        .detalle {
+            margin-top: 20px;
+            max-width: 600px;
+            margin: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #23272F;
+            border: 2px solid #58C4DC;
+        }
+
+        table th, table td {
+            border: 1px solid #58C4DC;
+            padding: 8px;
+            text-align: center;
+            color: #F6F7F9;
+        }
+
+        table th {
+            background-color: #2c3e50;
+            color: #F6F7F9;
+        }
+
+        .btnEliminar {
+            background-color: #e74c3c;
+            color: #F6F7F9;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btnEliminar:hover {
+            background-color: #c0392b;
+        }
+
+        /* Estilos para las opciones del select */
+        select option {
+            background-color: #2c3e50;
+            color: #F6F7F9;
+        }
+
+        /* Ajustes adicionales para mejorar la legibilidad */
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #F6F7F9;
+        }
+
+        ::placeholder {
+            color: #F6F7F9;
+            opacity: 0.7;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #58C4DC;
+            box-shadow: 0 0 5px #58C4DC;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Cargar Pedido</h1>
+<div style="display: flex; gap:20px">
+<form id="formEditarPedido">
+    <h1>Agregue un pedido</h1>
+    <label for="fechaPedido">Fecha del Pedido:</label>
+    <input type="date" id="fechaPedido" name="fechaPedido" required>
+
+    <label for="nroComprobante">Nro Comprobante:</label>
+    <input type="text" id="nroComprobante" name="nroComprobante" required>
+
+    <label for="formaPago">Forma de Pago:</label>
+    <select id="formaPago" name="formaPago" required>
+        <option value="Efectivo">Efectivo</option>
+        <option value="Tarjeta">Tarjeta</option>
+        <option value="Transferencia">Transferencia</option>
+    </select>
+
+    <label for="observaciones">Observaciones:</label>
+    <textarea id="observaciones" name="observaciones" rows="4"></textarea>
+
+    <label for="totalPedido">Total del Pedido:</label>
+    <input type="number" id="totalPedido" name="totalPedido" step="0.01" readonly>
+
+    <label for="idCliente">Cliente:</label>
+    <select id="idCliente" name="idCliente" required></select>
+
+    <button type="submit">Guardar Cambios</button>
+</form>
+    
+<div class="detalle">
+    <h2>Detalles del Pedido</h2>
+    <form id="formDetallePedido">
+        <label for="idProducto">Producto:</label>
+        <select id="idProducto" name="idProducto" required></select>
+
+        <label for="cantidad">Cantidad:</label>
+        <input type="number" id="cantidad" name="cantidad" required>
+
+        <label for="subtotal">Subtotal:</label>
+        <input type="number" id="subtotal" name="subtotal" step="0.01" readonly>
+
+        <button type="submit">Agregar Detalle</button>
+    </form>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Subtotal</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="listaDetalles"></tbody>
+    </table>
+</div>
+
+</div>
+
+<script>
+    const formEditarPedido = document.getElementById('formEditarPedido');
+    const formDetallePedido = document.getElementById('formDetallePedido');
+    const listaDetalles = document.getElementById('listaDetalles');
+    const detalles = [];
+
+    formEditarPedido.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const selectedOption = document.getElementById('idCliente').selectedOptions[0];
+        const objCliente = JSON.parse(selectedOption.getAttribute('data-cliente'));
+
+        const pedido = {
+            fechaPedido: document.getElementById('fechaPedido').value,
+            nroComprobante: document.getElementById('nroComprobante').value,
+            formaPago: document.getElementById('formaPago').value,
+            observaciones: document.getElementById('observaciones').value,
+            totalPedido: parseFloat(document.getElementById('totalPedido').value),
+            cliente: objCliente, 
+            detalles: detalles
+        };
+
+        const response = await fetch('/pedidosConDetalles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(pedido)
+        });
+
+        if (response.ok) {
+            alert('Pedido guardado exitosamente');
+            window.location.href = `/index.html`;
+        } else {
+            alert('Error al guardar el pedido');
+        }
+    });
+
+    formDetallePedido.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const selectedOption = document.getElementById('idProducto').selectedOptions[0];
+        const producto = JSON.parse(selectedOption.value); // Parsear el producto desde el value
+
+        const cantidad = parseFloat(document.getElementById('cantidad').value);
+        const subtotal = parseFloat(document.getElementById('subtotal').value);
+
+        if (!cantidad || !subtotal) {
+            alert('Cantidad o Subtotal inválidos');
+            return;
+        }
+
+        const detalle = { producto, cantidad, subtotal };
+        detalles.push(detalle); // Guardar el objeto producto completo
+        agregarFilaDetalle(detalle);
+
+        actualizarTotal();
+        formDetallePedido.reset();
+    });
+
+    function agregarFilaDetalle({ producto, cantidad, subtotal }) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${producto.denominacion}</td>
+            <td>${cantidad}</td>
+            <td>${subtotal}</td>
+            <td><button type="button" class="btnEliminar">Eliminar</button></td>
+        `;
+        listaDetalles.appendChild(tr);
+
+        tr.querySelector('.btnEliminar').addEventListener('click', () => {
+            listaDetalles.removeChild(tr);
+            const index = detalles.findIndex(d => d.producto === producto && d.cantidad === cantidad);
+            detalles.splice(index, 1);
+            actualizarTotal();
+        });
+    }
+
+    function actualizarTotal() {
+        const total = detalles.reduce((sum, d) => sum + d.subtotal, 0);
+        document.getElementById('totalPedido').value = total.toFixed(2);
+    }
+
+    async function cargarClientes() {
+        const response = await fetch('/Clientes/');
+        const clientes = await response.json();
+        const selectClientes = document.getElementById('idCliente');
+        selectClientes.innerHTML = clientes.map(cliente =>
+            `<option value="${cliente.id}" data-cliente='${JSON.stringify(cliente)}'>${cliente.razonSocial}</option>`
+        ).join('');
+    }
+
+    async function cargarProducto() {
+        const response = await fetch('/Productos/');
+        const productos = await response.json();
+        const selectProducto = document.getElementById('idProducto');
+
+        selectProducto.innerHTML = productos.map(producto =>
+            `<option value='${JSON.stringify(producto)}'>${producto.denominacion} - $${producto.precioVenta}</option>`
+        ).join('');
+    }
+
+    async function obtenerCliente(id) {
+        const response = await fetch(`/Clientes/${id}`);
+        const cliente = await response.json();
+        return cliente;
+    }
+
+    document.getElementById('idProducto').addEventListener('change', actualizarSubtotal);
+    document.getElementById('cantidad').addEventListener('input', actualizarSubtotal);
+
+    function actualizarSubtotal() {
+        const selectProducto = document.getElementById('idProducto');
+        const precioProducto = parseFloat(selectProducto.selectedOptions[0].textContent.split('$')[1]);
+        const cantidad = parseFloat(document.getElementById('cantidad').value) || 0;
+        const subtotal = cantidad * precioProducto;
+        document.getElementById('subtotal').value = subtotal.toFixed(2);
+    }
+
+    cargarClientes();
+    cargarProducto();
+</script>
+
+</body>
+</html>

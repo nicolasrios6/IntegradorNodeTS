@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Pedidos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #23272F;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #F6F7F9;
+        }
+
+        form {
+            background-color: #23272F;
+            padding: 20px;
+            border: 2px solid #58C4DC;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            max-width: 600px;
+            margin: auto;
+            color: #F6F7F9;
+        }
+
+        form input, form select {
+            width: calc(100% - 20px);
+            margin-bottom: 15px;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #58C4DC;
+            border-radius: 4px;
+        }
+
+        form button {
+            width: 100%;
+            background-color: #58C4DC;
+            color: 23272F;
+            border: none;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        form button:hover {
+            background-color: #58C4DC;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #23272F;
+            border: 2px solid #58C4DC;
+        }
+
+        table th, table td {
+            text-align: left;
+            padding: 10px;
+            border: 2px solid #58C4DC;
+        }
+
+        table th {
+            background-color: #2c3e50;
+            color: #F6F7F9;
+        }
+
+        .action-buttons button {
+            margin-right: 10px;
+            background-color: #e74c3c;
+            color: F6F7F9;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .action-buttons button:hover {
+            background-color: #c0392b;
+        }
+
+        .action-buttons button.edit {
+            background-color: #2ecc71;
+        }
+
+        .action-buttons button.edit:hover {
+            background-color: #27ae60;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Gestión de Pedidos de Venta</h1>
+<div style="display: flex; gap:20px">
+
+<form id="filtroPedidos">
+    <h2>Filtrar pedidos</h2>
+    
+    <div style="margin-bottom: 20px;">
+        <label for="fechaMin">Fecha mínima:</label>
+        <input type="date" id="fechaMin" name="fechaMin" placeholder="Fecha mínima">
+        
+        <label for="fechaMax">Fecha máxima:</label>
+        <input type="date" id="fechaMax" name="fechaMax" placeholder="Fecha máxima">
+        
+        <button id="filtrarPedidos" type="button">Buscar</button>
+    </div>
+
+    <div style="margin-bottom: 20px;">
+        <label for="nroPedido">Número de Pedido:</label>
+        <input type="number" id="nroPedido" name="nroPedido" placeholder="Número de Pedido">
+        <button id="buscarNroPedido" type="button">Buscar por Número</button>
+    </div>
+
+    <div>
+        <button id="nuevoPedido" type="button">Nuevo Pedido</button>
+    </div>
+</form>
+
+<table id="pedidosTable">
+    <thead>
+        <tr>
+            <th>Nro Comprobante</th>
+            <th>Cliente</th>
+            <th>Fecha</th>
+            <th>Forma de Pago</th>
+            <th>Total</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+    </tbody>
+</table>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+    const pedidosTable = document.getElementById('pedidosTable').getElementsByTagName('tbody')[0];
+    const btnFiltrarPedidos = document.getElementById("filtrarPedidos");
+    const btnFiltrarPedidosnro = document.getElementById("buscarNroPedido");
+    const btnNuevoPedidos = document.getElementById("nuevoPedido");
+
+    async function fetchPedidos() {
+        const response = await fetch('/obtenerPedidos');
+        //console.log(response);
+        const pedidos = await response.json();
+        console.log(pedidos);
+        renderPedidos(pedidos);
+    }
+
+    function renderPedidos(pedidos) {
+    pedidosTable.innerHTML = '';
+    pedidos.forEach(p => {
+        const row = pedidosTable.insertRow();
+        let f = formatDate(p.fechaPedido);
+        row.innerHTML = `
+            <td style="color: #F6F7F9">${p.nroComprobante}</td>
+            <td style="color: #F6F7F9">${p.cliente.razonSocial}</td>
+            <td style="color: #F6F7F9">${f}</td>
+            <td style="color: #F6F7F9">${p.formaPago}</td>
+            <td style="color: #F6F7F9">$${p.totalPedido}</td>
+            <td class="action-buttons">
+                <button class="edit" onclick='editarPedido(${p.id})'>Editar</button>
+                <button onclick="borrarPedido(${p.id})">Eliminar</button>
+                <button onclick='generarPDF(${JSON.stringify(p)})' style="background-color: #e74c3c; color: white;">Generar PDF</button>
+            </td>
+        `;
+    });
+}
+
+
+    function formatDate(dateString) {
+        let f = dateString.split('T')[0];
+        f = f.split('-');
+        return f[2] + '/' + f[1] + '/' + f[0];
+    }
+
+    btnFiltrarPedidos.addEventListener("click", async () => {
+        const fechaMin = document.getElementById('fechaMin').value;
+        const fechaMax = document.getElementById('fechaMax').value;
+        const response = await fetch(`/obtenerPedidos/${fechaMin}/${fechaMax}`);
+        const pedidos = await response.json();
+        renderPedidos(pedidos);
+    });
+
+    btnFiltrarPedidosnro.addEventListener("click", async () => {
+        const nroPedido = document.getElementById('nroPedido').value;
+        const response = await fetch(`/obtenerPedido/${nroPedido}`);
+        const pedidos = await response.json();
+        renderPedidos(pedidos);
+    });
+
+    async function borrarPedido(id) {
+        const response = await fetch(`/Pedido/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            alert('Pedido eliminado con éxito');
+            fetchPedidos(); 
+        } else {
+            alert('Error al eliminar el pedido');
+        }
+    }
+
+    async function generarPDF(pedido) {
+    try {
+        const detallesResponse = await fetch(`/obtenerDetalles/${pedido.id}`);
+        
+        if (!detallesResponse.ok) {
+            throw new Error('Error al obtener los detalles del pedido.');
+        }
+
+        const detalles = await detallesResponse.json();
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({
+            orientation: "portrait",
+            unit: "mm",
+            format: [100, 200] 
+        });
+
+        doc.setFont("Courier", "normal");
+        doc.setFontSize(10);
+        
+        doc.text("Ticket de Pedido", 20, 10);
+
+        doc.text(`Nro Comprobante: ${pedido.nroComprobante}`, 5, 20);
+        doc.text(`Fecha: ${pedido.fechaPedido.split('T')[0]}`, 5, 25);
+        doc.text(`Cliente: ${pedido.cliente.razonSocial}`, 5, 30);
+        doc.text(`Forma de Pago: ${pedido.formaPago}`, 5, 35);
+
+        doc.text("CANT  DESCRIPCION           PRECIO", 5, 45);
+        doc.line(5, 47, 75, 47);
+
+        let yPosition = 50;
+        detalles.forEach(detalle => {
+            const cantidad = "1.0".padEnd(5, " "); 
+            const descripcion = doc.splitTextToSize(detalle.producto.denominacion, 50);
+            const precio = detalle.subtotal.padStart(6, " ");
+
+            doc.text(cantidad, 5, yPosition); 
+            doc.text(descripcion, 15, yPosition); 
+            doc.text(precio, 65, yPosition); 
+
+            yPosition += 5 * descripcion.length; 
+        });
+
+        doc.line(5, yPosition, 75, yPosition);
+        yPosition += 5;
+        doc.text(`Importe Total: $${pedido.totalPedido}`, 5, yPosition);
+
+        doc.save(`Pedido_${pedido.nroComprobante}.pdf`);
+    } catch (error) {
+        alert(`Error al generar el PDF: ${error.message}`);
+    }
+}
+
+    function editarPedido(id) {
+        window.location.href = `/detallePedido.html?id=${id}`;
+    }
+
+    btnNuevoPedidos.addEventListener("click", async () => { 
+        window.location.href = `/nuevoPedido.html`;        
+    });
+
+    fetchPedidos();
+</script>
+
+</body>
+</html>
